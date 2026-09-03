@@ -5,6 +5,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import cv2
+import numpy as np
 import pytest
 from engine.detector import SensoryPipeline
 
@@ -94,6 +95,50 @@ def test_hud_rendering(pipeline):
 
     assert annotated.shape == img.shape
     assert annotated.dtype == img.dtype
+
+
+def test_multi_face_detection(pipeline):
+    # Create combined test image with 2 faces: Masked Sadness (left) and Genuine Joy (right)
+    img1 = cv2.imread("sample_data/masked_sadness.jpg")
+    img2 = cv2.imread("sample_data/genuine_joy.jpg")
+    h = min(img1.shape[0], img2.shape[0])
+    img1 = cv2.resize(img1, (int(img1.shape[1] * h / img1.shape[0]), h))
+    img2 = cv2.resize(img2, (int(img2.shape[1] * h / img2.shape[0]), h))
+    combined = np.hstack([img1, img2])
+
+    results = pipeline.process_frame_multi(combined, is_static=True)
+    assert len(results) == 2, f"Expected 2 detected faces, got {len(results)}"
+
+    p1, p2 = results[0], results[1]
+    assert p1.track_id == 1
+    assert p2.track_id == 2
+
+    # Verify horizontal spatial ordering (Person 1 is on the left, Person 2 is on the right)
+    assert p1.bbox[0] < p2.bbox[0], "Person 1 should be to the left of Person 2"
+
+    # Both persons should have valid, non-empty biometric diagnostics
+    assert p1.face_detected is True and p2.face_detected is True
+    assert p1.affect.primary_state is not None
+    assert p2.affect.primary_state is not None
+    assert p1.aus.au12_lip_corner_puller > 0.0
+    assert p2.aus.au12_lip_corner_puller > 0.0
+    assert p1.gaze.avg_ear > 0.0 and p2.gaze.avg_ear > 0.0
+
+
+def test_multi_face_hud_rendering(pipeline):
+    img1 = cv2.imread("sample_data/masked_sadness.jpg")
+    img2 = cv2.imread("sample_data/genuine_joy.jpg")
+    h = min(img1.shape[0], img2.shape[0])
+    img1 = cv2.resize(img1, (int(img1.shape[1] * h / img1.shape[0]), h))
+    img2 = cv2.resize(img2, (int(img2.shape[1] * h / img2.shape[0]), h))
+    combined = np.hstack([img1, img2])
+
+    results = pipeline.process_frame_multi(combined, is_static=True)
+    annotated = pipeline.draw_hud_multi(combined, results)
+
+    assert annotated.shape == combined.shape
+    assert annotated.dtype == combined.dtype
+
 
 
 if __name__ == "__main__":
