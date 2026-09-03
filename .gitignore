@@ -1,0 +1,41 @@
+# Main Application & Entrypoint files (Per User Privacy Specification)
+app.py
+live_sense.py
+
+# Machine Learning Models & Heavy Binaries
+models/
+models/face_landmarker.task
+*.task
+*.onnx
+*.tflite
+
+# Output Media, Recordings & Snapshots
+snapshot_*
+output_*
+*.mp4
+*.webm
+*.avi
+*.mov
+*.wav
+
+# System & Environment Files
+.env
+.env.local
+.DS_Store
+*.log
+
+# Python Cache & Testing
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE & App Data
+.idea/
+.vscode/
+*.swp
+*.swo
+
+venv/
