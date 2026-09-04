@@ -8,6 +8,7 @@ from .micro_expressions import MicroExpressionAnalyzer, ActionUnitScores
 from .blink_detector import BlinkDetector, BlinkMetrics
 from .rppg_pulse import RPPGPulseSensor, PulseResult
 from .sincerity_classifier import SincerityAffectClassifier, AffectDiagnosis
+from .auth import AuthManager
 
 __all__ = [
     "SensoryPipeline",
@@ -23,4 +24,5 @@ __all__ = [
     "PulseResult",
     "SincerityAffectClassifier",
     "AffectDiagnosis",
+    "AuthManager",
 ]

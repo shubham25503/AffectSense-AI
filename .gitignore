@@ -1,11 +1,10 @@
-# Main Application & Entrypoint files (Per User Privacy Specification)
-app.py
-live_sense.py
+# Distribution and Compiled Bundles
+dist/
+build/
+*.egg-info/
 
 # Machine Learning Models & Heavy Binaries
 models/
-models/face_landmarker.task
-*.task
 *.onnx
 *.tflite
 
@@ -21,8 +20,13 @@ output_*
 # System & Environment Files
 .env
 .env.local
+.access_keys.json
 .DS_Store
 *.log
+
+# Private Key Generator & Admin Tools (Never publish or push to open source)
+make_key.py
+
 
 # Python Cache & Testing
 __pycache__/

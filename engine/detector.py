@@ -195,15 +195,26 @@ class SensoryPipeline:
         "models",
         "face_landmarker.task"
     )
+    MODEL_DOWNLOAD_URL = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task"
+
+    def _ensure_model_exists(self):
+        if not os.path.exists(self.model_path):
+            os.makedirs(os.path.dirname(self.model_path), exist_ok=True)
+            print(f"[AffectSense] Downloading MediaPipe Face Landmarker model to {self.model_path}...")
+            import urllib.request
+            try:
+                urllib.request.urlretrieve(self.MODEL_DOWNLOAD_URL, self.model_path)
+                print("[AffectSense] Model download complete.")
+            except Exception as e:
+                raise FileNotFoundError(
+                    f"MediaPipe Face Landmarker model not found at: {self.model_path} and automated download failed: {e}. "
+                    f"Please place face_landmarker.task in {os.path.dirname(self.model_path)} manually."
+                )
 
     def __init__(self, model_path: Optional[str] = None, max_faces: int = 5):
         self.model_path = model_path or self.DEFAULT_MODEL_PATH
         self.max_faces = max_faces
-        if not os.path.exists(self.model_path):
-            raise FileNotFoundError(
-                f"MediaPipe Face Landmarker model not found at: {self.model_path}. "
-                "Ensure models/face_landmarker.task exists."
-            )
+        self._ensure_model_exists()
 
         from mediapipe.tasks import python
         from mediapipe.tasks.python import vision
@@ -232,8 +243,15 @@ class SensoryPipeline:
         self.blink_detector = BlinkDetector()
         self.pulse_sensor = RPPGPulseSensor()
 
+        # License & Access Key Security Manager
+        try:
+            from engine.auth import AuthManager
+            self.auth_manager = AuthManager()
+        except Exception:
+            self.auth_manager = None
+
     def reset_tracker(self):
-        """Reset temporal tracks (e.g. before starting a new video scan)."""
+        """Resets multi-face tracks between video sessions."""
         self.face_tracker.reset()
 
     def process_frame_multi(
@@ -246,6 +264,15 @@ class SensoryPipeline:
         Process a BGR video frame or photo and return sensory results for all detected faces.
         Each face receives persistent tracking and isolated biometric state.
         """
+        # Security Gating: Enforce active unexpired session
+        if hasattr(self, "auth_manager") and self.auth_manager and self.auth_manager.auth_enabled:
+            is_valid, rem, msg = self.auth_manager.is_current_session_valid()
+            if not is_valid:
+                raise PermissionError(
+                    f"AffectSense Security Lockout: {msg} "
+                    "Access is restricted to authorized sessions with an active Access Key."
+                )
+
         h, w, _ = frame_bgr.shape
         frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame_rgb)
