@@ -229,7 +229,16 @@ class SensoryPipeline:
             output_facial_transformation_matrixes=True,
             num_faces=self.max_faces
         )
-        self.detector = vision.FaceLandmarker.create_from_options(options)
+        try:
+            self.detector = vision.FaceLandmarker.create_from_options(options)
+        except OSError as oe:
+            import sys
+            py_ver = f"{sys.version_info.major}.{sys.version_info.minor}"
+            raise RuntimeError(
+                f"MediaPipe FaceLandmarker failed to load C shared library (_dlopen error on Python {py_ver}): {oe}. "
+                "This typically happens on Streamlit Cloud if the app is configured with Python 3.13+ or 3.14 (MediaPipe requires Python 3.10 or 3.11) "
+                "or if Linux packages (libgl1, libglib2.0-0, libgomp1) are missing in packages.txt."
+            ) from oe
 
         # Multi-face tracker
         self.face_tracker = FaceTracker()

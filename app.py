@@ -437,10 +437,45 @@ def get_pipeline():
     return engine.detector.SensoryPipeline()
 
 
-pipeline = get_pipeline()
-if not hasattr(pipeline, "reset_tracker") or not hasattr(pipeline, "process_frame_multi"):
-    st.cache_resource.clear()
+try:
     pipeline = get_pipeline()
+    if not hasattr(pipeline, "reset_tracker") or not hasattr(pipeline, "process_frame_multi"):
+        st.cache_resource.clear()
+        pipeline = get_pipeline()
+except Exception as e:
+    import sys
+    py_ver = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+    st.error("### ⚠️ Sensory Pipeline Engine Error")
+    
+    if sys.version_info >= (3, 13):
+        st.warning(
+            f"**Incompatible Python Version Detected: Python {py_ver}**\n\n"
+            "Google MediaPipe's underlying C++ binaries do not support Python 3.13+ or Python 3.14. "
+            "Its dynamic C library fails to link with `_dlopen`.\n\n"
+            "**Action Required on Streamlit Community Cloud:**\n"
+            "1. Click **Manage app** in the bottom-right corner of your app (or visit [share.streamlit.io](https://share.streamlit.io)).\n"
+            "2. Click the three vertical dots (`⋮`) next to your app and select **Settings**.\n"
+            "3. Under **Advanced settings**, set **Python version** to **3.11** (or 3.10).\n"
+            "4. Click **Save** and reboot the app."
+        )
+    else:
+        st.warning(
+            "**MediaPipe Shared Library Load Failure:**\n\n"
+            "The system was unable to load MediaPipe's native dynamic libraries via `_dlopen`.\n\n"
+            "Ensure that `packages.txt` in the root of your repository contains:\n"
+            "```text\n"
+            "libgl1\n"
+            "libglib2.0-0\n"
+            "libgomp1\n"
+            "libgles2-mesa\n"
+            "```\n"
+            "Then reboot the app from Streamlit Cloud."
+        )
+    with st.expander("🔍 Technical Diagnostics & Traceback"):
+        st.code(str(e))
+        import traceback
+        st.code(traceback.format_exc())
+    st.stop()
 
 # Main Header
 st.markdown("## Human Emotion & Retinal Sense Detector")
