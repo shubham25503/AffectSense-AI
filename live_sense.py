@@ -33,6 +33,7 @@ except Exception:
     AUDIO_AVAILABLE = False
 
 from engine.detector import SensoryPipeline, SensoryResult
+from engine.auth import AuthManager
 
 
 class AudioRecorder:
@@ -78,10 +79,38 @@ class AudioRecorder:
             wavfile.write(out_wav_path, self.sample_rate, scaled)
 
 
-def run_live(source=0, show_mesh=True, show_rays=True):
+def run_live(source=0, show_mesh=True, show_rays=True, key=None):
     print("=" * 68)
     print("  HUMAN EMOTION & TRUE SENSE IDENTIFICATION SYSTEM (HUD)")
     print("=" * 68)
+
+    # Security Gating & Session Authorization
+    auth_mgr = AuthManager()
+    if auth_mgr.auth_enabled:
+        token = key or os.getenv("ACCESS_KEY")
+        if not token and auth_mgr.admin_master_key:
+            token = auth_mgr.admin_master_key
+
+        if not token:
+            try:
+                token = input("Enter Access Key or Admin Key to unlock: ").strip()
+            except (EOFError, KeyboardInterrupt):
+                print("\nSession aborted.")
+                sys.exit(1)
+
+        ok, msg, session = auth_mgr.validate_and_activate(
+            token,
+            user_info={"name": "CLI User", "phone": "+10000000000", "email": "cli@local.user"},
+            require_user_info=False
+        )
+        if not ok:
+            print(f"\n[SECURITY LOCKOUT] Authorization failed: {msg}")
+            print("Access is restricted. Run 'python make_key.py' to issue an Access Key.\n")
+            sys.exit(1)
+
+        AuthManager.set_current_session(session)
+        print(f"[SECURITY] Session authorized ({session.get('key_display', 'AUTH-OK')}).")
+
     print("Initializing Sensory Pipeline...")
 
     try:
@@ -123,7 +152,10 @@ def run_live(source=0, show_mesh=True, show_rays=True):
     cap = cv2.VideoCapture(source)
     if not cap.isOpened():
         print(f"[WARNING] Could not open camera {source}.")
+        print("💡 Note: On macOS, please ensure Terminal has Camera access enabled in:")
+        print("   System Settings -> Privacy & Security -> Camera")
         print("Falling back to sample verification mode...")
+
         samples = [
             "sample_data/masked_sadness.jpg",
             "sample_data/genuine_joy.jpg",
@@ -301,12 +333,14 @@ def main():
     parser = argparse.ArgumentParser(description="Real-Time AffectSense Biometric HUD")
     parser.add_argument("--source", type=str, default=None, help="Image, video file, or camera index")
     parser.add_argument("--camera", type=int, default=0, help="Camera device index (default: 0)")
+    parser.add_argument("--key", type=str, default=None, help="Access Key or Admin Key to authorize session")
     parser.add_argument("--no-mesh", action="store_true", help="Hide landmark contours")
     parser.add_argument("--no-rays", action="store_true", help="Hide 3D retinal gaze rays")
     args = parser.parse_args()
 
     src = args.source if args.source is not None else args.camera
-    run_live(source=src, show_mesh=not args.no_mesh, show_rays=not args.no_rays)
+    run_live(source=src, show_mesh=not args.no_mesh, show_rays=not args.no_rays, key=args.key)
+
 
 
 if __name__ == "__main__":
