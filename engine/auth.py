@@ -21,7 +21,8 @@ import threading
 import re
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Any, Optional, Tuple, List
+from typing import Dict, Any, Optional, Tuple, List, Mapping
+from urllib.parse import urlsplit
 
 try:
     from dotenv import load_dotenv
@@ -116,6 +117,19 @@ class AuthManager:
     def session_duration_seconds(self) -> float:
         """Returns default session duration in seconds."""
         return max(1.0, self.session_expiration_minutes * 60.0)
+
+    @staticmethod
+    def is_local_request(headers: Optional[Mapping[str, str]] = None) -> bool:
+        """Returns whether the current request targets a local host."""
+        if not headers:
+            return False
+
+        host_header = headers.get("Host") or headers.get("host")
+        if not host_header:
+            return False
+
+        hostname = urlsplit(f"//{host_header}").hostname
+        return hostname in {"localhost", "127.0.0.1", "::1"}
 
     def _hash_key(self, key_str: str) -> str:
         """Computes SHA-256 hash of normalized key string."""

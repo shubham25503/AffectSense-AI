@@ -127,6 +127,14 @@ def test_cloner_environment_default(tmp_path, monkeypatch):
     # Public generation must be DISABLED by default
     assert cloner_mgr.allow_public_generation is False
 
+
+def test_local_request_detection():
+    assert AuthManager.is_local_request({"Host": "localhost:8501"}) is True
+    assert AuthManager.is_local_request({"Host": "127.0.0.1:8501"}) is True
+    assert AuthManager.is_local_request({"Host": "[::1]:8501"}) is True
+    assert AuthManager.is_local_request({"Host": "app.example.com"}) is False
+    assert AuthManager.is_local_request({}) is False
+
 def test_cross_machine_token_redemption(tmp_path):
     # Owner machine
     owner_env = tmp_path / "owner.env"

@@ -339,6 +339,12 @@ is_master = current_session.get("is_master", False) if current_session else Fals
 is_admin = current_session.get("is_admin", False) or is_master if current_session else False
 user_info = current_session.get("user_info", {}) if current_session else {}
 user_name = user_info.get("name") or ("Admin" if is_admin else "Authorized User")
+try:
+    request_headers = st.context.headers
+except (AttributeError, RuntimeError):
+    request_headers = {}
+is_local_request = auth_manager.is_local_request(request_headers)
+can_use_live_camera = is_local_request and is_admin
 
 # Sidebar
 admin_view_choice = "👁️ AffectSense Studio"
@@ -838,8 +844,13 @@ with tab_inspect:
 # TAB 2: LIVE VIDEO STREAMING & AUDIO/MIC RECORDER
 # =========================================================================
 with tab_live_rec:
-    st.markdown("##### Live Camera Stream & Microphone Audio Recording")
-    st.write("Start your webcam to see real-time floating context overlays, and record video with microphone audio:")
+    if can_use_live_camera:
+        st.markdown("##### Live Camera Stream & Microphone Audio Recording")
+        st.write("Start your webcam to see real-time floating context overlays, and record video with microphone audio:")
+    elif not is_local_request:
+        st.info("Live camera and microphone recording is coming soon for remote users. Run AffectSense locally and sign in as an administrator to use it.")
+    else:
+        st.warning("Live camera and microphone recording is restricted to local administrator sessions.")
 
     # Real-Time MediaPipe Face Tracking & Audio/Video Recorder
     html5_recorder_code = """
@@ -1341,21 +1352,22 @@ with tab_live_rec:
     </body>
     </html>
     """
-    components.html(html5_recorder_code, height=640)
+    if can_use_live_camera:
+        components.html(html5_recorder_code, height=640)
 
-
-    st.markdown("---")
-    st.markdown("##### Camera Frame Snapshot")
-    cam_shot = st.camera_input("Take Snapshot for Analysis")
-    if cam_shot is not None:
-        bytes_data = cam_shot.getvalue()
-        cv2_img = cv2.imdecode(np.frombuffer(bytes_data, np.uint8), cv2.IMREAD_COLOR)
-        with st.spinner("Analyzing frame..."):
-            res = pipeline.process_frame(cv2_img)
-        if res:
-            render_affect_dashboard(res, cv2_img)
-        else:
-            st.warning("No face detected.")
+    if can_use_live_camera:
+        st.markdown("---")
+        st.markdown("##### Camera Frame Snapshot")
+        cam_shot = st.camera_input("Take Snapshot for Analysis")
+        if cam_shot is not None:
+            bytes_data = cam_shot.getvalue()
+            cv2_img = cv2.imdecode(np.frombuffer(bytes_data, np.uint8), cv2.IMREAD_COLOR)
+            with st.spinner("Analyzing frame..."):
+                res = pipeline.process_frame(cv2_img)
+            if res:
+                render_affect_dashboard(res, cv2_img)
+            else:
+                st.warning("No face detected.")
 
 
 # =========================================================================
