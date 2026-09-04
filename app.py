@@ -23,6 +23,11 @@ from engine.detector import SensoryPipeline, SensoryResult
 from engine.auth import AuthManager
 from engine.admin_view import render_admin_dashboard
 
+MAX_VIDEO_UPLOAD_MB = 50
+MAX_VIDEO_DURATION_SECONDS = 60.0
+MAX_VIDEO_ANALYSIS_EDGE_PX = 640
+SCRUBBER_FRAME_INTERVAL_SECONDS = 1.0
+
 # Page configuration
 st.set_page_config(
     page_title="AffectSense AI",
@@ -1432,6 +1437,15 @@ with tab_video:
         fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
         duration_sec = total_frames / fps if fps > 0 else 0.0
 
+        if duration_sec > MAX_VIDEO_DURATION_SECONDS:
+            cap.release()
+            os.unlink(tfile.name)
+            st.error(
+                f"This video is {duration_sec:.1f} seconds long. "
+                f"Please upload a clip no longer than {MAX_VIDEO_DURATION_SECONDS:.0f} seconds."
+            )
+            st.stop()
+
         st.write(f"Video loaded: **{total_frames} frames** ({fps:.1f} FPS, **{duration_sec:.1f} seconds**).")
 
         col_act1, col_act2 = st.columns([1, 2])
@@ -1466,6 +1480,10 @@ with tab_video:
             elif hasattr(pipeline, "face_tracker"):
                 pipeline.face_tracker.reset()
 
+            # Release results from an earlier scan before retaining new video data.
+            st.session_state.pop("video_timeline", None)
+            st.session_state.pop("annotated_frames", None)
+
             while cap.isOpened():
                 ret, frame = cap.read()
                 if not ret:
@@ -1474,12 +1492,32 @@ with tab_video:
                 t_sec = frame_idx / fps
 
                 if frame_idx % step == 0:
+                    # Analyse a bounded resolution so a large source video cannot
+                    # overwhelm the small-memory Community Cloud runtime.
+                    frame_h, frame_w = frame.shape[:2]
+                    longest_edge = max(frame_h, frame_w)
+                    if longest_edge > MAX_VIDEO_ANALYSIS_EDGE_PX:
+                        scale = MAX_VIDEO_ANALYSIS_EDGE_PX / longest_edge
+                        frame = cv2.resize(
+                            frame,
+                            (round(frame_w * scale), round(frame_h * scale)),
+                            interpolation=cv2.INTER_AREA,
+                        )
+
                     multi_res = pipeline.process_frame_multi(frame, timestamp=t_sec)
                     if multi_res and len(multi_res) > 0:
                         annotated = pipeline.draw_hud_multi(frame, multi_res, show_mesh=show_mesh, show_gaze_rays=show_gaze_rays)
                         annotated_rgb = cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB)
-                        frame_placeholder.image(annotated_rgb, use_container_width=True)
-                        annotated_frames.append((t_sec, annotated, multi_res))
+                        frame_placeholder.image(annotated_rgb, width="stretch")
+
+                        # The scrubber needs representative images, not every
+                        # high-resolution analysis frame. Retain at most one per
+                        # second to keep the session within Cloud memory limits.
+                        if (
+                            not annotated_frames
+                            or t_sec - annotated_frames[-1][0] >= SCRUBBER_FRAME_INTERVAL_SECONDS
+                        ):
+                            annotated_frames.append((t_sec, annotated, multi_res))
 
                         # Multi-Person Live Status Bar
                         chips_html = "".join([
