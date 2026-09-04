@@ -1,5 +1,14 @@
 # AffectSense AI: Human Emotion & Retinal Gaze Intelligence
 
+## License
+
+Copyright 2026 Shubham25503. This repository's original source code is licensed
+under the [Apache License 2.0](LICENSE). See [NOTICE](NOTICE) and
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for third-party attribution.
+
+Before redistributing this project, confirm that you have permission to
+redistribute all sample images, models, and other non-code assets.
+
 > **Beyond Superficial Face Expressions**: Detect authentic joy, masked sadness, forced smiling, and emotional suppression using **3D retinal/iris gaze tracking**, **Duchenne Action Unit coherence (AU6 vs AU12)**, **Darwinian grief muscle tension (AU1)**, and **contactless pulse sensing (rPPG)**.
 
 ---
