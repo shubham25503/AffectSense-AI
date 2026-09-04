@@ -1415,7 +1415,12 @@ with tab_video:
         "tracking retinal gaze vectors, and identifying true underlying feelings across the entire timeline."
     )
 
-    vid_file = st.file_uploader("Upload Video File (MP4 / WebM / MOV / AVI)", type=["mp4", "webm", "mov", "avi"])
+    vid_file = st.file_uploader(
+        "Upload Video File (MP4 / WebM / MOV / AVI, max 50 MB)",
+        type=["mp4", "webm", "mov", "avi"],
+        max_upload_size=50,
+        help="Each uploaded video is limited to 50 MB.",
+    )
 
     if vid_file is not None:
         tfile = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
